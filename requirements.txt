@@ -1,0 +1,9 @@
+flask
+python-dotenv
+requests
+python-docx
+reportlab
+openai-whisper
+markdown
+pydub
+ffmpeg-python

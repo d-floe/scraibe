@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Scraibe: Meetings Summarized</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=arrow_upward,autorenew" />
+</head>
+
+<body>
+    <h1> <a href="/" style="color:inherit; text-decoration:inherit;"><svg class="logo" xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 66.9 60.64">
+                <title>scraibe</title>
+                <path class="a" d="M67.6,47.24,44.36,7A10.19,10.19,0,0,0,26.7,7L3.46,47.24a10.2,10.2,0,0,0,8.83,15.29H19A8.07,8.07,0,0,0,27,54.46V51.75a8.07,8.07,0,0,1,8.07-8.07h0a8.07,8.07,0,0,1,8.07,8.07v2.71a8.07,8.07,0,0,0,8.07,8.07h7.53A10.2,10.2,0,0,0,67.6,47.24ZM35.1,37a8.08,8.08,0,1,1,8.07-8.07A8.08,8.08,0,0,1,35.1,37Z" transform="translate(-2.09 -1.89)"/>
+            </svg> Scraibe</a> </h1>
+    <p class="center">Paste or upload your meeting transcripts, we'll handle the rest.</p>
+
+    <form method="POST" action="/upload" onsubmit="handleSubmit()" enctype="multipart/form-data">
+
+        <div id="drop-zone" class="drop-zone">
+            <p>Drag & drop file here or click to upload</p>
+            <input type="file" name="file" accept=".txt,.mp3" id="file-input" hidden>
+        </div>
+
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="file-list-box">
+            <div id="file-list">
+            </div>
+            <button type="submit" id="upload-btn" class="btn" style="display:none;">
+                Upload & Process
+            </button>
+        </div>
+
+    </form>
+
+    <form method="POST" onsubmit="handleSubmit()" class="inputbox">
+        <!-- Your custom editable "textarea" -->
+        <div class="textarea" contenteditable="true" id="editor"></div>
+
+        <!-- Hidden input that actually gets submitted -->
+        <input type="hidden" name="notes" id="hiddenInput">
+
+        <button type="submit" class="submit-btn" id="submitBtn"><span class="material-symbols-outlined"
+                id="btnIcon">arrow_upward</span></button>
+    </form>
+    <br>
+    <p id="loading" style="display:none;" class="fade-in">Processing... please wait.</p>
+
+    {% if original_text %}
+    <h4 style="margin-top:0; margin-bottom:0.8rem;">Transcribed / Uploaded Text:</h4>
+    <div class="upload-content">
+        <p>{{ original_text }}</p>
+    </div>
+    {% endif %}
+
+    <github-md class="fade-in">{{ response }}</github-md>
+
+    {% if response %}
+    <div class="export">
+        <form method="POST" action="/export/txt">
+            <input type="hidden" name="content" value="{{ response }}">
+            <button type="submit" class="btn">Export TXT</button>
+        </form>
+
+        <form method="POST" action="/export/docx">
+            <input type="hidden" name="content" value="{{ response }}">
+            <button type="submit" class="btn">Export DOCX</button>
+        </form>
+
+        <form method="POST" action="/export/pdf">
+            <input type="hidden" name="content" value="{{ response }}">
+            <button type="submit" class="btn">Export PDF</button>
+        </form>
+    </div>
+    {% endif %}
+
+</body>
+
+
+<script>
+    function handleSubmit() {
+        const editor = document.getElementById("editor");
+        const hidden = document.getElementById("hiddenInput");
+        const button = document.getElementById("submitBtn");
+        const upload = document.getElementById("upload-btn");
+        const icon = document.getElementById("btnIcon");
+        const loading = document.getElementById("loading");
+
+        // Copy text into hidden input
+        hidden.value = editor.innerText;
+
+        // Disable button
+        button.disabled = true;
+        upload.disabled = true;
+
+        icon.textContent = "autorenew";
+
+        loading.style.display = "block";
+    }
+
+    const dropZone = document.getElementById("drop-zone");
+    const fileInput = document.getElementById("file-input");
+    const fileList = document.getElementById("file-list");
+
+    // Click to open file picker
+    dropZone.addEventListener("click", () => {
+        fileInput.click();
+    });
+
+    // Show selected files
+    fileInput.addEventListener("change", (e) => {
+        handleFiles(e.target.files);
+    });
+
+    // Drag over styling
+    dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+    });
+
+    // Remove highlight
+    dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover");
+    });
+
+    // Drop handler
+    dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+
+        const files = e.dataTransfer.files;
+
+        // Assign dropped files to the actual input
+        fileInput.files = files;
+
+        // Process/display files
+        handleFiles(files);
+    });
+
+    function handleFiles(files) {
+
+        // Get upload button
+        const uploadBtn = document.getElementById("upload-btn");
+
+        // Clear previous file display
+        fileList.innerHTML = "";
+
+        // Hide button by default
+        uploadBtn.style.display = "none";
+
+        // Track whether any valid files exist
+        let hasValidFile = false;
+
+        // Loop through uploaded files
+        Array.from(files).forEach(file => {
+
+            // Validate file first
+            if (!validateFile(file)) {
+                return;
+            }
+
+            // If validation passes:
+            hasValidFile = true;
+
+            // Create file display element
+            const p = document.createElement("p");
+
+            // Show filename + size
+            p.textContent = `${file.name} (${Math.round(file.size / 1024)} KB)`;
+
+            // Add to UI
+            fileList.appendChild(p);
+        });
+
+        // Only show button if a valid file exists
+        if (hasValidFile) {
+            uploadBtn.style.display = "block";
+        }
+    }
+    function validateFile(file) {
+
+        // Allowed extensions
+        const allowedExtensions = [".txt", ".mp3"];
+
+        // Get lowercase filename
+        const fileName = file.name.toLowerCase();
+
+        // Check extension
+        const isValidExtension = allowedExtensions.some(ext =>
+            fileName.endsWith(ext)
+        );
+
+        // 16 MB max
+        const maxSize = 16 * 1024 * 1024;
+
+        // Invalid type
+        if (!isValidExtension) {
+            alert("Only TXT and MP3 files are allowed.");
+            return false;
+        }
+
+        // Too large
+        if (file.size > maxSize) {
+            alert("File is too large. Maximum size is 16 MB.");
+            return false;
+        }
+
+        return true;
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/gh/MarketingPipeline/Markdown-Tag/markdown-tag.js"></script>
+
+</html>
