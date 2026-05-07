@@ -93,8 +93,8 @@ If it does not work, FFmpeg is likely not added to your system PATH.
 Clone the repository:
 
 ```bash
-git clone <your-repo-url>
-cd notes-ai
+git clone d-floe/scraibe
+cd scraibe
 ```
 
 Create a virtual environment:
