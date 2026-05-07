@@ -57,7 +57,7 @@ https://ollama.com/download
 After installation, pull a model:
 
 ```bash
-ollama pull gemma3
+ollama pull gemma4
 ```
 
 Or whichever model you want to use.
